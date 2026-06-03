@@ -1,0 +1,4 @@
+name,official_url,pricing_url,category,note
+ServiceA,https://service-a.example.com,https://service-a.example.com/pricing,分析,
+ServiceB,https://service-b.example.com,https://service-b.example.com/price,分析,
+自社サービス,https://our-service.example.com,https://our-service.example.com/plan,分析,自社=PR表記対象

@@ -1,0 +1,23 @@
+{
+  "name": "beauty-seo-articles",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "美容マーケ向け比較記事SEO半自動システム（調査=スクリプト / 執筆=Claude Code、API課金ゼロ）",
+  "scripts": {
+    "discover": "tsx src/discover.ts",
+    "prep": "tsx src/pipeline.ts",
+    "check": "tsx src/check.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "csv-parse": "^5.5.6",
+    "csv-stringify": "^6.5.0",
+    "playwright": "^1.48.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.7.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0"
+  }
+}

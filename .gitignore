@@ -1,0 +1,6 @@
+node_modules/
+output/
+dist/
+*.log
+.DS_Store
+# v4ではAPIキー不要のため .env は使わない
