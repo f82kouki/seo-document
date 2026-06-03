@@ -23,6 +23,11 @@ export interface SectionSpec {
   guidance: string;
   /** 省略不可ブロックか */
   required: boolean;
+  /**
+   * 薬機法（化粧品の効能）に紐づくセクションかどうか。
+   * research に薬機法・化粧品効能の論点が無いテーマでは promptBuilder 側で除外する。
+   */
+  yakkiho?: boolean;
 }
 
 /**
@@ -74,6 +79,7 @@ export const SECTIONS: SectionSpec[] = [
     guidance:
       '化粧品の効果は56効能の範囲で。断定表現（「シミが消える」等）はNG。薬機法との接続を必ず一節置く。',
     required: true,
+    yakkiho: true,
   },
   {
     role: 'よくある質問（FAQ）',
@@ -135,8 +141,7 @@ ${MARKS.heading} {見出し2：誰が・何を・どこに 等の実務分解}
 ${MARKS.heading} {見出し3：対象別・SNS別などの並列セクション。各社/各項目を中立に列挙}
 ${MARKS.subheading} 重要：{注意喚起の小見出し}
 
-${MARKS.heading} {美容で特に注意：薬機法との接続を必ず一節置く（56効能・断定表現NG）}
-
+{薬機法ブロック}
 ${MARKS.heading} よくある質問（FAQ）
 Q. {質問}
 A. {回答}
@@ -156,11 +161,27 @@ ${MARKS.bullet} {薬機法など同時に留意すべき点}`;
  * 体裁仕様をプロンプト用テキストにレンダリングする。
  * promptBuilder が system.md と連結して 1枚のプロンプトmd を組み立てる際に使う。
  */
-export function renderTemplateSpec(): string {
-  const sectionLines = SECTIONS.map(
-    (s) => `- ${s.role}${s.required ? '（必須）' : '（任意）'}：${s.guidance}`,
-  ).join('\n');
+export interface TemplateSpecOptions {
+  /**
+   * 薬機法（化粧品の効能）の論点が research に含まれるテーマか。
+   * false のときは「美容で特に注意（薬機法）」節を構造・スケルトンから外す。
+   * 既定 true（後方互換：従来どおり薬機法節を必須で出す）。
+   */
+  includeYakkiho?: boolean;
+}
+
+export function renderTemplateSpec(opts: TemplateSpecOptions = {}): string {
+  const includeYakkiho = opts.includeYakkiho ?? true;
+
+  const sectionLines = SECTIONS.filter((s) => includeYakkiho || !s.yakkiho)
+    .map((s) => `- ${s.role}${s.required ? '（必須）' : '（任意）'}：${s.guidance}`)
+    .join('\n');
   const ruleLines = STYLE_RULES.map((r) => `- ${r}`).join('\n');
+
+  const yakkihoBlock = includeYakkiho
+    ? `${MARKS.heading} {美容で特に注意：薬機法との接続を必ず一節置く（56効能・断定表現NG）}\n\n`
+    : '';
+  const skeleton = SKELETON.replace('{薬機法ブロック}\n', yakkihoBlock);
 
   return [
     '## 記事の固定構造（この順序・この記法）',
@@ -171,7 +192,7 @@ export function renderTemplateSpec(): string {
     '',
     '## 体裁スケルトン（この骨格で書く）',
     '```',
-    SKELETON,
+    skeleton,
     '```',
   ].join('\n');
 }

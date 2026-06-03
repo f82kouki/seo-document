@@ -17,6 +17,31 @@ function readSystemPrompt(): string {
   return fs.readFileSync(paths.systemPrompt, 'utf-8');
 }
 
+/** 薬機法（化粧品の効能）の論点が含まれるテーマかを判定する語。 */
+const YAKKIHO_PATTERN =
+  /薬機法|薬事法|医薬部外品|効能|効果効能|化粧品|コスメ|スキンケア|基礎化粧品|メイク|美白|保湿|シミ|シワ|ニキビ|肌荒れ|エイジング/;
+
+/**
+ * research と topic から「薬機法（化粧品効能）の論点があるテーマか」を判定する。
+ * 取ってきた競合記事（SERPタイトル/スニペット/見出し）や公式データ、テーマ語に
+ * 化粧品効能まわりの語が出てくる場合のみ true。出てこなければ薬機法節は出さない。
+ */
+function detectYakkihoRelevant(research: ResearchResult, topic: Topic): boolean {
+  const haystack = [
+    topic.title,
+    topic.keyword,
+    topic.category,
+    topic.note ?? '',
+    ...research.serp.flatMap((s) => [s.title, s.snippet, ...s.h2, ...s.h3, ...s.faq]),
+    ...research.officialData.flatMap((d) => [
+      d.toolName,
+      d.targetUser ?? '',
+      ...d.features,
+    ]),
+  ].join(' ');
+  return YAKKIHO_PATTERN.test(haystack);
+}
+
 /** prompts/examples/*.md を few-shot として読む（.gitkeep等は除外）。 */
 function readExamples(): { name: string; body: string }[] {
   if (!fs.existsSync(paths.examples)) return [];
@@ -98,7 +123,8 @@ function renderResearchSection(research: ResearchResult): string {
  */
 export function buildPrompt(research: ResearchResult, topic: Topic): string {
   const system = readSystemPrompt();
-  const templateSpec = renderTemplateSpec();
+  const includeYakkiho = detectYakkihoRelevant(research, topic);
+  const templateSpec = renderTemplateSpec({ includeYakkiho });
   const examples = readExamples();
 
   const fetched = new Date(research.fetchedAt);
@@ -119,6 +145,9 @@ export function buildPrompt(research: ResearchResult, topic: Topic): string {
     [
       `- テーマ: 「${topic.title}」 / 狙いキーワード: 「${topic.keyword}」 / カテゴリ: ${topic.category}`,
       topic.note ? `- テーマ補足: ${topic.note}` : '',
+      includeYakkiho
+        ? '- 薬機法: 今回の調査データには化粧品の効能・薬機法に関わる論点が含まれます。「美容で特に注意（薬機法）」節を置き、56効能の範囲・断定表現NGに触れること。'
+        : '- 薬機法: 今回の調査データには化粧品の効能・薬機法に関わる論点が見当たりません。「美容で特に注意（薬機法）」節は無理に設けないこと。化粧品の効能に触れる場合のみ、56効能の範囲で簡潔に補足するに留める。',
       '- 下の「体裁仕様」の構造・記法に厳密に従う。',
       '- 料金・機能は下の「調査データ（research）」の数値だけを使う（自分の知識で補わない）。',
       '- 参考リンクは「参考リンクに使ってよいURL」以外を書かない（新規URL生成禁止）。',
